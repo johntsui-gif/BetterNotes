@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id), esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])), icon=n=>'<i data-lucide="'+n+'"></i>', icons=()=>lucide.createIcons(), uid=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join(''), fresh=()=>({w:750,h:960,marks:[]}), palettes=['#d7e9df','#e6e0ed','#f4e0d3','#e5e9d9','#dfe5ed'];
+const $=id=>document.getElementById(id), esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])), icon=n=>'<i data-lucide="'+n+'"></i>', icons=()=>lucide.createIcons(), uid=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join(''), fresh=()=>({w:750,h:960,marks:[],pdfPage:null}), palettes=['#d7e9df','#e6e0ed','#f4e0d3','#e5e9d9','#dfe5ed'];
 let db,docs=[],folders=[],view='Library',layout=localStorage.layout||'grid',current=null,pg=0,tool='pen',color='#19453f',width=3,redo=[],gesture=null,recent=localStorage.recent,busySave=Promise.resolve(),pending=new Set(),toastTimer;
 function notify(s){$('toast').textContent=s;$('toast').style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').style.display='none',3800)}
 function modal(title,html){$('dialogBody').innerHTML='<h2 class="modalTitle">'+esc(title)+'</h2>'+html;if(!$('modal').open)$('modal').showModal();icons()}
@@ -24,8 +24,8 @@ document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='k'){
 const toolset={read:['mouse-pointer-2','Read · select text and follow links'],pen:['pen-tool','Pen · draw freehand'],highlight:['highlighter','Highlighter · mark a passage'],line:['minus','Line · drag between two points'],rect:['square','Rectangle · drag to size'],ellipse:['circle','Ellipse · drag to size'],arrow:['move-up-right','Arrow · drag toward the target'],text:['type','Text · tap the page to type'],erase:['eraser','Eraser · tap an annotation to remove it'],laser:['wand-sparkles','Laser · point or drag for a fading trail']};
 let undoStack=[],initialPage,tipTimer,longUsed=false;
 function toolBtn(id,ic,t,sel=false){return '<button data-tool="'+id+'" aria-label="'+esc(t)+'" data-tip="'+esc(t)+'" class="'+(sel?'on':'')+'">'+icon(ic)+'</button>'}
-function toolbar(){const p=current.pages[pg];$('tools').innerHTML=Object.entries(toolset).map(([k,[ic,t]])=>toolBtn(k,ic,t,k===tool)).join('')+'<input id="color" type="color" aria-label="Ink color" data-tip="Choose ink color" value="'+color+'"><select id="weight" aria-label="Stroke width">'+[2,3,6,10].map(w=>'<option '+(width===w?'selected':'')+'>'+w+'</option>').join('')+'</select>'+toolBtn('undo','undo-2','Undo last edit')+toolBtn('redo','redo-2','Redo last edit');$('color').oninput=e=>color=e.target.value;$('weight').onchange=e=>width=+e.target.value;$('pages').innerHTML='<button id="prev" aria-label="Previous page" '+(!pg?'disabled':'')+'>‹</button> Page '+(pg+1)+' of '+current.pages.length+' <button id="next" aria-label="Next page" '+(pg+1===current.pages.length?'disabled':'')+'>›</button><button id="addpage" class="outline">＋ Page</button>';$('prev').onclick=()=>pageTo(pg-1);$('next').onclick=()=>pageTo(pg+1);$('addpage').onclick=()=>{current.pages.push(fresh());save(current);pageTo(current.pages.length-1)};icons()}
-function pageTo(n){if(n<0||n>=current.pages.length)return;pg=n;localStorage['pg'+current.id]=pg;drawPage()}
+function toolbar(){const p=current.pages[pg];$('tools').innerHTML=Object.entries(toolset).map(([k,[ic,t]])=>toolBtn(k,ic,t,k===tool)).join('')+'<input id="color" type="color" aria-label="Ink color" data-tip="Choose ink color" value="'+color+'"><select id="weight" aria-label="Stroke width">'+[2,3,6,10].map(w=>'<option '+(width===w?'selected':'')+'>'+w+'</option>').join('')+'</select>'+toolBtn('undo','undo-2','Undo last edit')+toolBtn('redo','redo-2','Redo last edit');$('color').oninput=e=>color=e.target.value;$('weight').onchange=e=>width=+e.target.value;renderPageControls();icons()}
+function pageTo(n){if(!current||!Number.isInteger(n)||n<0||n>=current.pages.length||gesture)return;pg=n;localStorage['pg'+current.id]=pg;drawPage()}
 function element(tag,attrs){const el=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);return el}
 function mark(m){const [x,y]=m.points[0],[a,b]=m.points.at(-1);let tag='path',attr={};if(m.type==='rect'){tag='rect';attr={x:Math.min(x,a),y:Math.min(y,b),width:Math.abs(a-x),height:Math.abs(b-y)}}else if(m.type==='ellipse'){tag='ellipse';attr={cx:(a+x)/2,cy:(b+y)/2,rx:Math.abs(a-x)/2,ry:Math.abs(b-y)/2}}else if(m.type==='text'){const el=element('text',{x,y,fill:m.color,'font-size':16+m.width*2});el.textContent=m.text;return el}else{let pts=m.type==='line'||m.type==='arrow'?[[x,y],[a,b]]:m.points;attr.d='M'+pts.map(p=>p.join(' ')).join(' L');if(pts.length===1)attr.d+=' l.1 .1';if(m.type==='arrow'){const angle=Math.atan2(b-y,a-x),len=14;attr.d+=' M'+[a-len*Math.cos(angle-.5),b-len*Math.sin(angle-.5)].join(' ')+' L'+a+' '+b+' L'+[a-len*Math.cos(angle+.5),b-len*Math.sin(angle+.5)].join(' ')}}return element(tag,{...attr,fill:'none',stroke:m.color,'stroke-width':m.width,'stroke-linecap':'round','stroke-linejoin':'round',opacity:m.type==='highlight'?.34:1})}
 function drawPage(){const p=current.pages[pg];if(initialPage!==p){undoStack=[];redo=[];initialPage=p}$('base').style.visibility='visible';if(p.image)$('base').src=p.image;else $('base').removeAttribute('src');$('paper').style.aspectRatio=p.w+'/'+p.h;$('ink').setAttribute('viewBox','0 0 '+p.w+' '+p.h);$('ink').replaceChildren(...p.marks.map((m,i)=>{const el=mark(m);el.dataset.index=i;return el}));toolbar();pdfViewer.show()}
@@ -44,8 +44,8 @@ function hideTip(){clearTimeout(tipTimer);$('tip').style.display='none'}
 document.addEventListener('pointerover',e=>{const b=e.target.closest('[data-tip]');if(b&&e.pointerType==='mouse')tipTimer=setTimeout(()=>tip(b),450)});document.addEventListener('pointerout',hideTip);document.addEventListener('pointerdown',e=>{longUsed=false;const b=e.target.closest('[data-tip]');if(b&&e.pointerType!=='mouse')tipTimer=setTimeout(()=>{longUsed=true;tip(b)},500)});document.addEventListener('pointerup',()=>{clearTimeout(tipTimer);if(longUsed)setTimeout(hideTip,1500)});document.addEventListener('contextmenu',e=>{if(e.target.closest('[data-tip]'))e.preventDefault()});
 $('import').onclick=()=>{modal('Import notebooks','<p>In Goodnotes, export your notebook as a PDF with annotations included. Import a single PDF, a ZIP folder of PDFs, a JPG or PNG, or an BetterNotes backup. PDFs open in the integrated reader. Use Read to select text and follow links, or choose a drawing tool to annotate.</p><button class="primary" id="pick">Choose files</button>');$('pick').onclick=()=>$('file').click()};
 const dataURL=blob=>new Promise((ok,no)=>{const r=new FileReader;r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(blob)});
-async function readDocument(name,blob){const ext=name.split('.').pop().toLowerCase(),title=name.split('/').pop().replace(/\.[^.]+$/,''),folder=name.includes('/')?name.split('/').slice(0,-1).join('/'):(view.startsWith('folder:')?view.slice(7):'');let pages=[],originalPDF;if(ext==='goodnotes')throw Error('Export this notebook as PDF from Goodnotes first.');if(ext==='zip'){const zip=await JSZip.loadAsync(blob);const entries=Object.values(zip.files).filter(f=>!f.name.startsWith('__MACOSX/'));const dirs=entries.filter(f=>f.dir).map(f=>f.name.replace(/\/+$/,'' )).filter(Boolean);folders=[...new Set([...folders,...dirs])];localStorage.folders=JSON.stringify(folders);const files=entries.filter(f=>!f.dir&&!f.name.startsWith('__MACOSX')&&/\.(pdf|png|jpe?g)$/i.test(f.name));if(!files.length&&dirs.length&&entries.every(f=>f.dir))return;if(!files.length)throw Error('This ZIP has no PDF or image exports. Export the folder as PDF in Goodnotes.');for(const f of files)await readDocument(f.name,await f.async('blob'));return}if(ext==='pdf'){originalPDF=await dataURL(new Blob([blob],{type:'application/pdf'}));const pdfjs=await import('./pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='./pdf.worker.min.mjs';const pdf=await pdfjs.getDocument({data:await blob.arrayBuffer(),useSystemFonts:true,isEvalSupported:false,standardFontDataUrl:'./standard_fonts/',cMapUrl:'./cmaps/',cMapPacked:true,wasmUrl:'./wasm/'}).promise;try{for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i),base=page.getViewport({scale:1});pages.push({w:base.width,h:base.height,marks:[]});page.cleanup()}}finally{await pdf.destroy()}}else if(['jpg','jpeg','png'].includes(ext)){const image=await dataURL(new Blob([blob],{type:ext==='png'?'image/png':'image/jpeg'})),img=new Image;img.src=image;await img.decode();pages=[{w:img.width,h:img.height,marks:[],image}]}else if(['betternotes','inkfolio'].includes(ext)){const d=JSON.parse(await blob.text());if(!validDoc(d))throw Error('Invalid notebook backup');const imported={...d,id:uid(),deleted:false};await save(imported);docs.push(imported);return}else throw Error('Unsupported file type');const d=make(title,docs.length%5,folder,pages);if(originalPDF)d.originalPDF=originalPDF;await save(d);docs.push(d)}
-function validDoc(d){return d&&(!d.originalPDF||(typeof d.originalPDF==='string'&&/^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/.test(d.originalPDF)))&&typeof d.title==='string'&&Number.isInteger(d.cover)&&d.cover>=0&&d.cover<5&&Array.isArray(d.pages)&&d.pages.length&&d.pages.every(p=>p.w>0&&p.h>0&&(!p.image||/^data:image\/(png|jpeg);base64,/.test(p.image))&&Array.isArray(p.marks)&&p.marks.every(m=>toolset[m.type]&&typeof m.color==='string'&&/^#[a-f\d]{6}$/i.test(m.color)&&Number.isFinite(m.width)&&m.points?.length&&m.points.every(v=>v.length===2&&v.every(Number.isFinite))))}
+async function readDocument(name,blob){const ext=name.split('.').pop().toLowerCase(),title=name.split('/').pop().replace(/\.[^.]+$/,''),folder=name.includes('/')?name.split('/').slice(0,-1).join('/'):(view.startsWith('folder:')?view.slice(7):'');let pages=[],originalPDF;if(ext==='goodnotes')throw Error('Export this notebook as PDF from Goodnotes first.');if(ext==='zip'){const zip=await JSZip.loadAsync(blob);const entries=Object.values(zip.files).filter(f=>!f.name.startsWith('__MACOSX/'));const dirs=entries.filter(f=>f.dir).map(f=>f.name.replace(/\/+$/,'' )).filter(Boolean);folders=[...new Set([...folders,...dirs])];localStorage.folders=JSON.stringify(folders);const files=entries.filter(f=>!f.dir&&!f.name.startsWith('__MACOSX')&&/\.(pdf|png|jpe?g)$/i.test(f.name));if(!files.length&&dirs.length&&entries.every(f=>f.dir))return;if(!files.length)throw Error('This ZIP has no PDF or image exports. Export the folder as PDF in Goodnotes.');for(const f of files)await readDocument(f.name,await f.async('blob'));return}if(ext==='pdf'){originalPDF=await dataURL(new Blob([blob],{type:'application/pdf'}));const pdfjs=await import('./pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='./pdf.worker.min.mjs';const pdf=await pdfjs.getDocument({data:await blob.arrayBuffer(),useSystemFonts:true,isEvalSupported:false,standardFontDataUrl:'./standard_fonts/',cMapUrl:'./cmaps/',cMapPacked:true,wasmUrl:'./wasm/'}).promise;try{for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i),base=page.getViewport({scale:1});pages.push({w:base.width,h:base.height,marks:[],pdfPage:i});page.cleanup()}}finally{await pdf.destroy()}}else if(['jpg','jpeg','png'].includes(ext)){const image=await dataURL(new Blob([blob],{type:ext==='png'?'image/png':'image/jpeg'})),img=new Image;img.src=image;await img.decode();pages=[{w:img.width,h:img.height,marks:[],image}]}else if(['betternotes','inkfolio'].includes(ext)){const d=JSON.parse(await blob.text());if(!validDoc(d))throw Error('Invalid notebook backup');const imported={...d,id:uid(),deleted:false};await save(imported);docs.push(imported);return}else throw Error('Unsupported file type');const d=make(title,docs.length%5,folder,pages);if(originalPDF)d.originalPDF=originalPDF;await save(d);docs.push(d)}
+function validDoc(d){return d&&(!d.originalPDF||(typeof d.originalPDF==='string'&&/^data:application\/pdf;base64,[A-Za-z0-9+/=]+$/.test(d.originalPDF)))&&typeof d.title==='string'&&Number.isInteger(d.cover)&&d.cover>=0&&d.cover<5&&Array.isArray(d.pages)&&d.pages.length&&d.pages.every(p=>p.w>0&&p.h>0&&(p.pdfPage===undefined||p.pdfPage===null||(Number.isInteger(p.pdfPage)&&p.pdfPage>0))&&(!p.image||/^data:image\/(png|jpeg);base64,/.test(p.image))&&Array.isArray(p.marks)&&p.marks.every(m=>toolset[m.type]&&typeof m.color==='string'&&/^#[a-f\d]{6}$/i.test(m.color)&&Number.isFinite(m.width)&&m.points?.length&&m.points.every(v=>v.length===2&&v.every(Number.isFinite))))}
 $('file').onchange=async e=>{const files=[...e.target.files];e.target.value='';closeModal();if(!files.length)return;notify('Importing documents…');try{for(const f of files)await readDocument(f.name,f);notify('Import complete')}catch(err){modal('Import details','<p>'+esc(err.message)+'</p>')}render()};
 start().catch(e=>notify('Could not open local storage: '+e.message));if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>notify('Offline installation is unavailable in this browser.'));
 async function exportPDF(d){
@@ -57,7 +57,8 @@ async function exportPDF(d){
   for(const [pageIndex,p] of d.pages.entries()){
     const scale=Math.min(2,2400/Math.max(p.w,p.h)),c=document.createElement('canvas');c.width=Math.ceil(p.w*scale);c.height=Math.ceil(p.h*scale);
     const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);
-    if(source&&pageIndex<source.numPages){const original=await source.getPage(pageIndex+1);await original.render({canvasContext:ctx,viewport:original.getViewport({scale})}).promise;}else if(p.image){const im=new Image();im.src=p.image;await im.decode();ctx.drawImage(im,0,0,c.width,c.height)}
+    const sourceNumber=source?pdfPageNumber(d.pages[pageIndex],pageIndex,source.numPages):null;
+    if(sourceNumber){const original=await source.getPage(sourceNumber);await original.render({canvasContext:ctx,viewport:original.getViewport({scale})}).promise;}else if(p.image){const im=new Image();im.src=p.image;await im.decode();ctx.drawImage(im,0,0,c.width,c.height)}
     const svg=element('svg',{xmlns:'http://www.w3.org/2000/svg',width:c.width,height:c.height,viewBox:'0 0 '+p.w+' '+p.h});svg.append(...p.marks.map(mark));
     const overlay=new Image();overlay.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));await overlay.decode();ctx.drawImage(overlay,0,0);
     const image=await pdf.embedPng(c.toDataURL());pdf.addPage([p.w,p.h]).drawImage(image,{x:0,y:0,width:p.w,height:p.h});c.width=1
@@ -179,17 +180,18 @@ const pdfViewer=(()=>{
     }
     if(current!==doc||pg!==index)return;
     controls.hidden=false;
-    if(index>=pdf.numPages){
+    const sourceNumber=pdfPageNumber(doc.pages[index],index,pdf.numPages);
+    if(!sourceNumber){
       generation++;renderTask?.cancel();textTask?.cancel();surface.replaceChildren();
       $('paper').style.width='';$('paper').style.height='';lastKey='';status.textContent='';
       return;
     }
     const available=Math.max(160,$('paperWrap').clientWidth-40);
-    const page=await pdf.getPage(index+1);
+    const page=await pdf.getPage(sourceNumber);
     if(current!==doc||pg!==index)return;
     const base=page.getViewport({scale:1});
     const scale=zoom??Math.min(available/base.width,1.6);
-    const key=doc.id+'/'+index+'/'+scale+'/'+devicePixelRatio;
+    const key=doc.id+'/'+index+'/'+sourceNumber+'/'+scale+'/'+devicePixelRatio;
     if(lastKey===key)return;
     lastKey=key;
     const job=++generation;
@@ -243,7 +245,10 @@ const pdfViewer=(()=>{
               const dest=typeof annotation.dest==='string'?await pdf.getDestination(annotation.dest):annotation.dest;
               if(!dest)return;
               const target=typeof dest[0]==='number'?dest[0]:await pdf.getPageIndex(dest[0]);
-              if(current===doc)pageTo(target);
+              if(current===doc){
+                const mapped=doc.pages.findIndex((p,i)=>pdfPageNumber(p,i,pdf.numPages)===target+1);
+                if(mapped>=0)pageTo(mapped);else notify('The linked page has been deleted.');
+              }
             }catch{notify('This PDF link could not be opened.');}
           };
         }else continue;
@@ -269,13 +274,15 @@ const pdfViewer=(()=>{
     if(!query){$('findStatus').textContent='';highlight();return;}
     $('findStatus').textContent='Searching…';
     try{
-      for(let i=0;i<pdf.numPages;i++){
+      for(let i=0;i<doc.pages.length;i++){
+        const sourceNumber=pdfPageNumber(doc.pages[i],i,pdf.numPages);
+        if(!sourceNumber)continue;
         if(run!==searchGeneration||current!==doc)return;
-        if(!textCache.has(i)){
-          const page=await pdf.getPage(i+1),content=await page.getTextContent();
-          textCache.set(i,content.items.map(item=>item.str||'').join(' ').toLowerCase());
+        if(!textCache.has(sourceNumber)){
+          const page=await pdf.getPage(sourceNumber),content=await page.getTextContent();
+          textCache.set(sourceNumber,content.items.map(item=>item.str||'').join(' ').toLowerCase());
         }
-        if(textCache.get(i).includes(query))hits.push(i);
+        if(textCache.get(sourceNumber).includes(query))hits.push(i);
       }
       if(run!==searchGeneration||current!==doc)return;
       if(!hits.length){$('findStatus').textContent='No matching text';highlight();return;}
@@ -299,3 +306,73 @@ const pdfViewer=(()=>{
   controls.hidden=true;
   return {show,close,updateMode};
 })();
+
+function pdfPageNumber(page,index,total){
+  if(page.pdfPage===null)return null;
+  const number=page.pdfPage===undefined?index+1:page.pdfPage;
+  return Number.isInteger(number)&&number>0&&number<=total?number:null;
+}
+
+function renderPageControls(){
+  const count=current.pages.length;
+  function navigation(id,label,graphic,disabled){
+    return '<button id="'+id+'" class="pageNavigation" aria-label="'+label+'" title="'+label+'" '+(disabled?'disabled':'')+'>'+icon(graphic)+'<span>'+label.replace(' page','')+'</span></button>';
+  }
+  $('pages').innerHTML=
+    '<div class="pageNavigationGroup">'+
+    navigation('firstPage','First page','chevrons-left',pg===0)+
+    navigation('prev','Previous page','chevron-left',pg===0)+
+    '<form id="pageJump"><label for="pageNumber">Page</label><input id="pageNumber" type="number" inputmode="numeric" min="1" max="'+count+'" value="'+(pg+1)+'" aria-label="Page number"><span>of '+count+'</span><button type="submit" title="Go to page">Go</button></form>'+
+    navigation('next','Next page','chevron-right',pg===count-1)+
+    navigation('lastPage','Last page','chevrons-right',pg===count-1)+
+    '</div><div class="pageActions"><button id="addpage" class="outline">'+icon('plus')+'Add page</button><button id="deletePage" class="deletePage">'+icon('trash-2')+'Delete page</button></div>';
+  $('firstPage').onclick=()=>pageTo(0);
+  $('prev').onclick=()=>pageTo(pg-1);
+  $('next').onclick=()=>pageTo(pg+1);
+  $('lastPage').onclick=()=>pageTo(current.pages.length-1);
+  $('pageJump').onsubmit=event=>{
+    event.preventDefault();
+    const value=Number($('pageNumber').value);
+    if(Number.isInteger(value)&&value>=1&&value<=current.pages.length)pageTo(value-1);
+    else notify('Enter a page number from 1 to '+current.pages.length+'.');
+  };
+  $('addpage').onclick=()=>{current.pages.push(fresh());save(current);pageTo(current.pages.length-1);};
+  $('deletePage').onclick=confirmPageDeletion;
+}
+
+function confirmPageDeletion(){
+  if(!current||gesture)return;
+  const doc=current,index=pg,page=doc.pages[index];
+  modal('Delete page '+(index+1)+'?',
+    '<p>This removes this page and its annotations from this notebook and future PDF exports.'+
+    (doc.pages.length===1?' A blank page will replace the final page.':'')+
+    '</p><div class="deleteActions"><button id="cancelDelete" class="outline">Cancel</button><button id="confirmDelete" class="primary">Delete page</button></div>');
+  $('cancelDelete').onclick=closeModal;
+  $('confirmDelete').onclick=async()=>{
+    const button=$('confirmDelete');
+    button.disabled=true;button.textContent='Deleting…';
+    try{
+      let total=0;
+      if(doc.originalPDF){
+        const pdf=await openPDF(doc.originalPDF);
+        total=pdf.numPages;await pdf.destroy();
+      }
+      if(current!==doc||doc.pages[index]!==page)throw Error('The notebook changed. Please try again.');
+      const candidate=structuredClone(doc);
+      // Freeze legacy positional references before changing the array order.
+      candidate.pages.forEach((p,i)=>{p.pdfPage=pdfPageNumber(p,i,total);});
+      candidate.pages.splice(index,1);
+      if(!candidate.pages.length)candidate.pages.push(fresh());
+      await save(candidate);
+      Object.assign(doc,candidate);
+      pdfViewer.close();
+      pg=Math.min(index,doc.pages.length-1);
+      localStorage['pg'+doc.id]=pg;
+      initialPage=null;undoStack=[];redo=[];
+      closeModal();drawPage();notify('Page deleted.');
+    }catch(error){
+      button.disabled=false;button.textContent='Delete page';
+      notify('Page could not be deleted: '+error.message);
+    }
+  };
+}
