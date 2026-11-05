@@ -100,3 +100,32 @@ function originalLink(){
   link.id='originalLink';link.href=readerURL;link.target='_blank';link.rel='noopener';link.className='outline';link.textContent='Read original PDF';
   $('present').before(link);
 }
+
+const drawerClose=document.createElement('button');
+drawerClose.id='drawerClose';
+drawerClose.type='button';
+drawerClose.setAttribute('aria-label','Close navigation');
+drawerClose.textContent='×';
+$('side').prepend(drawerClose);
+const drawerBackdrop=document.createElement('button');
+drawerBackdrop.id='drawerBackdrop';
+drawerBackdrop.setAttribute('aria-label','Close navigation');
+drawerBackdrop.tabIndex=-1;
+document.body.append(drawerBackdrop);
+$('hamb').setAttribute('aria-controls','side');
+function closeDrawer(){
+  document.body.classList.remove('drawer');
+  $('hamb').focus();
+}
+drawerClose.onclick=closeDrawer;
+drawerBackdrop.onclick=closeDrawer;
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&document.body.classList.contains('drawer'))closeDrawer();
+});
+const drawerObserver=new MutationObserver(()=>{
+  const open=document.body.classList.contains('drawer');
+  $('hamb').setAttribute('aria-expanded',String(open));
+  if(open)drawerClose.focus();
+});
+drawerObserver.observe(document.body,{attributes:true,attributeFilter:['class']});
+$('hamb').setAttribute('aria-expanded','false');
