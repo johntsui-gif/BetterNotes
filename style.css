@@ -127,3 +127,27 @@ body.present #readerControls { display:none; }
   #findQuery { flex:1; }
   #paper { margin-left:0; }
 }
+
+/* Page navigation stays visible below long documents. */
+#pages { gap:12px; justify-content:space-between; padding:12px; }
+.pageNavigationGroup,.pageActions,#pageJump,.deleteActions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+#pages .pageNavigation { min-width:76px; min-height:48px; padding:10px 12px; gap:6px; border:1px solid #bad9d1; background:#e4f3ed; color:#075f54; font-size:14px; font-weight:600; }
+#pages .pageNavigation svg { width:24px; height:24px; stroke-width:2.2; }
+#pages button:disabled { opacity:.4; cursor:default; }
+#pageJump { margin:0 8px; font-size:14px; }
+#pageNumber { width:76px; height:46px; border:1px solid #b8cdc3; border-radius:7px; text-align:center; font-size:16px; background:white; color:#203c31; }
+#pageJump button { background:#008375; color:white; min-width:44px; }
+#pages .deletePage { color:#a53030; border:1px solid #e8c9c9; min-height:48px; gap:6px; padding:10px 14px; }
+#pages .outline { min-height:48px; gap:6px; }
+.deleteActions { justify-content:flex-end; margin-top:18px; }
+@media(max-width:1100px) {
+  #pages { justify-content:center; }
+  .pageActions { justify-content:center; }
+}
+@media(max-width:760px) {
+  #pages { padding:10px 6px; }
+  .pageNavigationGroup { justify-content:center; gap:5px; width:100%; }
+  #pages .pageNavigation { min-width:48px; padding:10px; }
+  #pages .pageNavigation span { display:none; }
+  #pageJump { order:-1; flex-basis:100%; justify-content:center; margin:0 0 6px; }
+}
