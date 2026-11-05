@@ -2,3 +2,95 @@
 dialog{padding:26px;border:1px solid #d8e2db;border-radius:14px;width:min(420px,92vw);box-shadow:0 16px 70px #00292130}dialog::backdrop{background:#12282255}.close{float:right;font-size:24px}.modalTitle{font:29px Georgia,serif;margin:4px 0 17px}dialog p,dialog label{font-size:14px;line-height:1.55;color:#51635a}dialog label{display:block;margin:12px 0 5px}dialog input,dialog select{width:100%;padding:10px;border:1px solid #bccac2;border-radius:6px}dialog .primary,dialog .outline{margin-top:14px}.menuaction{display:block;width:100%;text-align:left;padding:10px;border-bottom:1px solid #edf1eb}#toast,#tip{position:fixed;z-index:20;pointer-events:none;background:#183b33;color:white;padding:9px 14px;border-radius:6px;font-size:13px;display:none}#toast{bottom:22px;left:50%;transform:translateX(-50%)}#tip{font-size:12px;max-width:240px}.editorHead h2{flex:1;font:24px Georgia,serif}.editorHead{margin-bottom:12px}#tools,#pages{display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap;padding:8px;background:#fff;border:1px solid #dce3dd;border-radius:9px}#tools button,#pages button{padding:8px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center}.on{background:#ceeee3;color:#006759}#paperWrap{background:#e9ede7;padding:20px;margin:10px 0;max-height:66vh;overflow:auto}#paper{position:relative;aspect-ratio: 750/960;max-width:780px;margin:auto;background-color:white;box-shadow:0 1px 7px #293a2626}#base,#ink{position:absolute;width:100%;height:100%;inset:0}#base:not([src]){display:none}#ink{touch-action:none;user-select:none}#pages{font-size:13px}body.present aside,body.present header,body.present #back,body.present #tools{display:none}body.present main{margin:0}body.present #editor{padding:6px}body.present #paperWrap{height:calc(100dvh - 110px);max-height:none}body.present #paper{height:100%;width:auto;max-width:100%}#tools input{width:30px;border:0}
 @media(max-width:1000px){aside{width:185px;padding:25px 11px}main{margin-left:185px}.top{align-items:flex-start}.actions{gap:5px}.actions button{padding:10px}.preview{padding:13px}#books{gap:10px}.info{padding:10px}.top p{max-width:310px}}
 @media(max-width:760px){aside{transform:translateX(-100%);width:225px;box-shadow:10px 0 30px #20362622}body.drawer aside{transform:none}main{margin:0}header{height:55px;gap:10px}.crumb{margin-right:auto}.crumb svg{display:none}#hamb{display:block}.search input{width:100px}.search kbd{display:none}.top{display:block}.actions{margin-top:16px}#library,#editor{padding:23px 5%}.top p{max-width:none}.top{margin-bottom:18px}#books{grid-template-columns:repeat(2,minmax(0,1fr))}.preview{height:170px}.coverTitle{font-size:14px}.herotext{padding:20px;width:66%}#feature{min-height:178px}#feature img{width:42%;object-fit:cover}.label{font-size:8px}.shelfhead{margin:21px 0 14px}.editorHead h2{font-size:19px}.editorHead .outline{padding:7px}.brand{margin-bottom:30px}#paperWrap{padding:5px}}
+
+/* Responsive navigation and comfortable touch controls. */
+.brand { font-size:26px; letter-spacing:-1.2px; gap:8px; padding:0; white-space:nowrap; }
+.brandicon { width:32px; height:36px; flex:0 0 32px; }
+.brandicon svg { width:23px; height:23px; }
+aside { overflow-y:auto; overscroll-behavior:contain; }
+#folders { overflow-wrap:anywhere; }
+#folders button { min-width:0; white-space:normal; }
+.sidebottom { padding-top:14px; }
+.editorHead h2 { min-width:0; overflow-wrap:anywhere; }
+#originalLink { text-decoration:none; }
+#drawerClose,#drawerBackdrop { display:none; }
+#tools button,#pages button,.more,.close { min-width:44px; min-height:44px; }
+#tools select { min-height:44px; }
+#tools input[type=color] { width:44px; height:44px; flex-shrink:0; }
+.info { min-width:0; }
+.booktitle { min-width:0; }
+.more { flex-shrink:0; }
+#toast { max-width:calc(100vw - 32px); width:max-content; }
+@media (min-width:761px) and (max-width:1000px) {
+  aside { width:220px; padding:26px 14px; }
+  main { margin-left:220px; }
+  #books { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .top { flex-wrap:wrap; }
+}
+@media (max-width:760px) {
+  body.drawer { overflow:hidden; }
+  aside { width:min(300px,86vw); padding:24px 18px max(24px,env(safe-area-inset-bottom)); z-index:31; visibility:hidden; }
+  body.drawer aside { visibility:visible; }
+  .brand { font-size:28px; padding-right:32px; margin-bottom:28px; }
+  #drawerClose { display:grid; place-items:center; position:absolute; top:18px; right:8px; width:44px; height:44px; font-size:26px; }
+  body.drawer #drawerBackdrop { display:block; position:fixed; inset:0; background:#0e292c77; z-index:30; }
+  nav button,.sidebottom button,#folders summary { min-height:48px; }
+  header { position:sticky; top:0; z-index:4; height:auto; min-height:64px; padding:8px 16px; gap:10px; }
+  #hamb { width:44px; height:44px; padding:10px; flex:0 0 44px; border:1px solid #dce3dc; border-radius:10px; }
+  .crumb { display:none; }
+  .search { flex:1; min-width:0; height:44px; padding:8px 12px; }
+  .search input { width:100%; min-width:0; font-size:16px; }
+  #library { padding:24px 16px max(28px,env(safe-area-inset-bottom)); }
+  h1 { font-size:38px; overflow-wrap:anywhere; }
+  .top p { line-height:1.5; }
+  .actions { display:grid; grid-template-columns:1fr 1.35fr; gap:10px; margin-top:20px; }
+  .actions button { justify-content:center; min-height:48px; font-size:14px; }
+  #feature { min-height:180px; }
+  #feature img { width:44%; opacity:.48; }
+  .herotext { width:100%; padding:22px; }
+  .herotext h2 { max-width:82%; font-size:29px; overflow-wrap:anywhere; }
+  .label { font-size:9px; letter-spacing:1px; }
+  #resume { min-height:44px; margin-top:16px; }
+  .shelfhead { gap:8px; margin-top:25px; }
+  .shelfhead h2 { font-size:25px; }
+  .views button { min-width:44px; min-height:44px; align-items:center; justify-content:center; }
+  #books { gap:12px; }
+  .preview { height:180px; padding:16px; }
+  .info { padding:8px 10px 14px; }
+  .cardrow { align-items:flex-start; gap:0; }
+  .booktitle { white-space:normal; overflow-wrap:anywhere; font-size:14px; line-height:1.4; padding-top:10px; }
+  .more { margin-right:-8px; }
+  .info small { font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+  #editor { padding:12px 8px max(16px,env(safe-area-inset-bottom)); }
+  .editorHead { display:flex; flex-wrap:wrap; gap:8px; }
+  .editorHead h2 { order:-1; flex:0 0 100%; font-size:23px; padding:3px 4px 7px; }
+  .editorHead .outline { min-height:44px; justify-content:center; padding:9px 12px; }
+  #originalLink { margin-left:auto; font-size:12px; }
+  #tools { flex-wrap:nowrap; justify-content:flex-start; overflow-x:auto; overscroll-behavior-x:contain; padding:6px; scrollbar-width:thin; }
+  #tools button,#tools select { flex-shrink:0; }
+  #tools button.on { box-shadow:inset 0 -3px #008779; }
+  #paperWrap { padding:6px; max-height:62dvh; min-height:200px; margin:8px 0; border-radius:8px; }
+  #pages { min-height:56px; gap:4px; padding:4px; }
+  dialog { padding:22px; max-height:85dvh; overflow:auto; }
+  dialog input,dialog select { font-size:16px; min-height:46px; }
+  .menuaction { min-height:48px; }
+  body.present .editorHead h2 { flex:1; order:0; font-size:18px; padding:0; }
+  body.present #originalLink { display:none; }
+  body.present #paperWrap { min-height:0; }
+}
+@media (max-width:360px) {
+  .brand { font-size:24px; }
+  .preview { height:155px; padding:12px; }
+  .shelfhead h2 { font-size:22px; }
+  .herotext { padding:18px; }
+}
+
+@media (min-width:761px) and (max-width:1100px) {
+  .editorHead { flex-wrap:wrap; }
+  .editorHead h2 { flex-basis:calc(100% - 130px); }
+  #originalLink { margin-left:auto; }
+  .brand { font-size:25px; }
+}
+@media (min-width:1101px) {
+  #paperWrap { max-height:calc(100dvh - 255px); }
+}
