@@ -1,0 +1,23 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),PDFLib=require('pdf-lib');
+const nodes=new Map();const node=()=>({style:{},dataset:{},addEventListener(){},append(){},prepend(){},after(){},before(){},classList:{toggle(){},add(){},remove(){}},setAttribute(){},replaceChildren(){},querySelectorAll(){return[]},getAttribute(){return''}});
+const ctx={console,PDFLib,Blob,URL,structuredClone,crypto:require('crypto').webcrypto,localStorage:{},document:{body:node(),addEventListener(){},createElement:node},window:{addEventListener(){},PDFLib},navigator:{},setInterval(){},setTimeout(){},$:id=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id)},toolset:{pen:[],highlight:[],text:[],rect:[],ellipse:[],line:[],arrow:[],erase:[],read:[]},mark(){},drawPage(){},openDoc(){},showLib(){},render(){},options(){},folderTree(){return''},validDoc(){return true},readDocument(){},write(){},esc:s=>s,uid:()=>require('crypto').randomUUID(),fresh:()=>({w:750,h:960,marks:[],pdfPage:null}),save:async()=>{},pdfViewer:{close(){}},docs:[],db:{},current:null,pg:0,notify(){},pdfPageNumber:(p,i,n)=>p.pdfPage===null?null:(p.pdfPage??i+1)<=n?(p.pdfPage??i+1):null,openPDF:async data=>{const p=await PDFLib.PDFDocument.load(data);return{numPages:p.getPageCount(),destroy(){}}}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync(__dirname+'/pdf-lib.min.js','utf8'),ctx);ctx.window.PDFLib=ctx.PDFLib;vm.runInContext(fs.readFileSync(__dirname+'/workspace.js','utf8'),ctx);
+const run=s=>vm.runInContext(s,ctx);
+(async()=>{
+ assert.deepEqual(JSON.parse(JSON.stringify(run(`parseDelimited('"Question, one","Answer with ""quotes"""\\r\\n"Two\\nlines",Yes',',')`))),[['Question, one','Answer with "quotes"'],['Two\nlines','Yes']]);
+ assert.throws(()=>run(`parseDelimited('"unfinished',',')`));
+ console.log('PASS CSV quoted delimiters, embedded newlines and malformed quotes');
+ ctx.current={id:'test',pages:[{marks:[{type:'pen',points:[[0,0],[20,0],[40,0]],width:2,layer:0},{type:'pen',points:[[0,0],[20,0]],width:2,layer:1},{type:'pen',points:[[0,0],[20,0]],width:2,layer:0,locked:true},{type:'highlight',points:[[0,0],[20,0]],width:4,layer:0}]}]};
+ run(`prefs.eraserSize=5;prefs.highlightOnly=true;eraseAt([10,0]);`);assert.equal(ctx.current.pages[0].marks.length,3);assert.equal(ctx.current.pages[0].marks[0].type,'pen');
+ run(`prefs.highlightOnly=false;prefs.eraser='precision';eraseAt([20,0]);`);assert.equal(ctx.current.pages[0].marks.length,4);assert.equal(ctx.current.pages[0].marks.filter(m=>m.layer===1).length,1);assert.equal(ctx.current.pages[0].marks.filter(m=>m.locked).length,1);
+ console.log('PASS precision split, highlight-only eraser, locked and inactive layer protection');
+ const src=await PDFLib.PDFDocument.create();for(let i=1;i<=3;i++)src.addPage([100*i,200]);const data='data:application/pdf;base64,'+Buffer.from(await src.save()).toString('base64');
+ const marks=[{type:'pen',points:[[10,10],[20,20]],width:3,color:'#008877',penStyle:'fountain',pressures:[.3,.7]},{type:'text',points:[[10,50]],width:2,color:'#008877',text:'Hello',fontSize:14},{type:'rect',points:[[10,70],[50,90]],width:2,color:'#008877'}];
+ const d={id:'pdf',title:'Reorder test',originalPDF:data,pages:[{w:300,h:200,pdfPage:3,marks},{w:100,h:200,pdfPage:1,marks:[]},{w:300,h:200,pdfPage:3,marks:[]}]};
+ const blob=await ctx.buildPDF(d,{mode:'vector',background:true,annotations:true});const out=await PDFLib.PDFDocument.load(await blob.arrayBuffer());assert.deepEqual(out.getPages().map(p=>p.getWidth()),[300,100,300]);assert.ok(out.getPage(0).node.Contents());
+ console.log('PASS vector PDF export, source page reorder/deletion/duplication, pressure ink and text');
+ const old={id:'atomic',pages:[{w:100,h:200,pdfPage:null,marks:[]},{w:100,h:200,pdfPage:null,marks:[]}]};ctx.current=old;ctx.save=async()=>{throw Error('QuotaExceeded')};await assert.rejects(ctx.commitPages(old,d=>d.pages.pop()));assert.equal(old.pages.length,2);
+ console.log('PASS failed page save does not delete live pages');
+ const rejected=run(`validDoc({pages:[{w:100,h:100,marks:[{type:'image',src:'https://tracker.invalid/image'}]}]})`);assert.equal(rejected,false);assert.equal(run(`inPolygon([5,5],[[0,0],[10,0],[10,10],[0,10]])`),true);
+ console.log('PASS unsafe image backup rejected and lasso geometry');
+})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,10 @@
+{
+  "name": "betternotes",
+  "private": true,
+  "scripts": {
+    "test": "node test-workspace.cjs"
+  },
+  "devDependencies": {
+    "pdf-lib": "1.17.1"
+  }
+}
