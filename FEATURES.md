@@ -114,3 +114,5 @@ The remaining work includes both genuine platform/service dependencies and feasi
 - Pointer input pressure: https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pressure
 - Pointer input rotation: https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/twist
 - Native Apple Pencil interaction APIs: https://developer.apple.com/documentation/uikit/apple-pencil-interactions
+
+<!-- Deployment retry: 2026-11-07 -->
